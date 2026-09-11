@@ -58,7 +58,3 @@ java -jar my-group-buy-market-app/target/my-group-buy-market-app.jar
 | POST | `/api/v1/gbm/trade/settlement_market_pay_order` | 支付结算 |
 
 请求字段与返回结构以 `api` 模块和控制器为准。
-
-## 项目来源
-
-本项目基于小傅哥拼团营销教程及 DDD 脚手架进行学习实践与扩展，保留源码中的原作者署名。本文介绍当前仓库实现，不将教程基础实现等同于个人独立贡献。
