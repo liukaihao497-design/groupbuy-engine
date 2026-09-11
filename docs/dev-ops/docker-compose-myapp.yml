@@ -1,0 +1,60 @@
+services:
+  # 前端静态页面
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: my-group-buy-market-nginx
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      # Compose 位于 docs/dev-ops
+      # 前端位于 docs/ui/html
+      - ../ui/html:/usr/share/nginx/html:ro
+
+  # Java 后端
+  my-group-buy-market:
+    image: my_group_buy_market:1.0
+    container_name: my-group-buy-market
+    restart: on-failure
+
+    ports:
+      - "8091:8091"
+
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: 8091
+      SPRING_PROFILES_ACTIVE: prod
+
+      # MySQL
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/group_buy_market?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: group_buy_app
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+
+      # Spring Data Redis
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+
+      # 自定义 Redisson
+      REDIS_SDK_CONFIG_HOST: redis
+      REDIS_SDK_CONFIG_PORT: 6379
+
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      MYBATIS_MAPPER_LOCATIONS: "classpath*:/com/lkh/infrastructure/dao/mapper/*.xml"
+      MYBATIS_CONFIGURATION_MAP_UNDERSCORE_TO_CAMEL_CASE: "true"
+    # Java 容器通过该地址连接 Windows 本机 MySQL
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ./log:/data/log
+
+    networks:
+      - redis-network
+
+networks:
+  redis-network:
+    external: true
+    name: software_my-network

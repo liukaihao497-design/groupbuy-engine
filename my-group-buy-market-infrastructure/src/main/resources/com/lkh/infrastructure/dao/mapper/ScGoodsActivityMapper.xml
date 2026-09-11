@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lkh.infrastructure.dao.ScGoodsActivityMapper">
+
+    <resultMap id="BaseResultMap" type="com.lkh.infrastructure.dao.po.ScGoodsActivity">
+            <id property="id" column="id" />
+            <result property="source" column="source" />
+            <result property="channel" column="channel" />
+            <result property="goodsId" column="goods_id" />
+            <result property="activityId" column="activity_id" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,source,channel,goods_id,activity_id,create_time,
+        update_time
+    </sql>
+    <select id="queryGroupBuyActivity" resultType="com.lkh.infrastructure.dao.po.GroupBuyActivity">
+        select  a.id,a.activity_id,a.activity_name,
+                a.discount_id,a.group_type,a.take_limit_count,a.target,a.valid_time,
+                a.status,a.start_time,a.end_time,a.tag_id,a.tag_scope,
+                a.create_time,a.update_time
+        from sc_sku_activity sc left join group_buy_activity a
+        on sc.activity_id = a.activity_id
+        where sc.source = #{source} and sc.channel = #{channel} and sc.goods_id = #{goodsId}
+    </select>
+    <select id="query" resultMap="BaseResultMap">
+        select * from sc_sku_activity
+        <where>
+            <if test="id != null">
+                and id = #{id}
+            </if>
+            <if test="source != null">
+                and source = #{source}
+            </if>
+            <if test="channel != null">
+                and channel = #{channel}
+            </if>
+            <if test="id != null">
+                and goods_id = #{goodsId}
+            </if>
+
+        </where>
+    </select>
+    <select id="querySCByActivityId" resultMap="BaseResultMap">
+        select * from sc_sku_activity
+        where activity_id = #{activityId}
+    </select>
+    <select id="queryActivityId" resultType="java.lang.String">
+        select activity_id
+        from sc_sku_activity
+        <where>
+        <if test="source != null">
+            and source = #{source}
+        </if>
+        <if test="channel != null">
+            and channel = #{channel}
+        </if>
+            <if test="goodsId != null">
+                and goods_id = #{goodsId}
+            </if>
+
+</where>
+    </select>
+</mapper>

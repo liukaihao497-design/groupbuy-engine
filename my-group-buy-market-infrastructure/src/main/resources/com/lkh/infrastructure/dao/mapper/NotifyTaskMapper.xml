@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lkh.infrastructure.dao.NotifyTaskMapper">
+
+    <resultMap id="BaseResultMap" type="com.lkh.infrastructure.dao.po.NotifyTask">
+            <id property="id" column="id" />
+            <result property="activityId" column="activity_id" />
+            <result property="teamId" column="team_id" />
+            <result property="notifyUrl" column="notify_url" />
+            <result property="notifyType" column="notify_type" />
+            <result property="notifyMq" column="notify_mq" />
+            <result property="notifyCount" column="notify_count" />
+            <result property="notifyStatus" column="notify_status" />
+            <result property="parameterJson" column="parameter_json" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,activity_id,team_id,notify_url,notify_type,notify_mq,notify_count,notify_status,
+        parameter_json,create_time,update_time
+    </sql>
+    <insert id="insert">
+        insert into notify_task (
+            activity_id,team_id,notify_url,notify_type,notify_mq,notify_count,notify_status,
+            parameter_json,create_time,update_time
+        )
+        values (
+                #{activityId},#{teamId},#{notifyUrl},#{notifyType},#{notifyMq},#{notifyCount},#{notifyStatus},#{parameterJson},#{createTime},#{updateTime}
+               )
+    </insert>
+    <update id="setFailAndIncryCount">
+        update notify_task
+        set notify_count = notify_count + 1, notify_status = 3, update_time = now()
+        where team_id = #{teamId} and notify_status in (0, 2)
+    </update>
+    <update id="setSuccessAndIncryCount">
+        update notify_task
+        set notify_count = notify_count + 1, notify_status = 1, update_time = now()
+        where team_id = #{teamId} and notify_status in (0, 2)
+    </update>
+    <update id="setRetryAndIncryCount">
+        update notify_task
+        set notify_count = notify_count + 1, notify_status = 2, update_time = now()
+        where team_id = #{teamId} and notify_status in (0, 2)
+    </update>
+    <select id="queryByTeamId" resultMap="BaseResultMap">
+        select  id,activity_id,team_id,notify_url,notify_type,notify_mq,notify_count,notify_status,
+                parameter_json,create_time,update_time
+        from notify_task
+        where team_id = #{teamId} and notify_status in (0, 2)
+    </select>
+    <select id="queryNoCompleteORRetryTask" resultMap="BaseResultMap">
+        select       id,activity_id,team_id,notify_url,notify_type,notify_mq,notify_count,notify_status,
+                     parameter_json,create_time,update_time
+        from notify_task
+        where notify_status in (#{createStatus},#{retryStatus})
+        limit #{count}
+    </select>
+</mapper>

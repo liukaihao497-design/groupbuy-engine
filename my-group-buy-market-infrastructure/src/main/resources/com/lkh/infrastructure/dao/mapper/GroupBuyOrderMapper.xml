@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lkh.infrastructure.dao.GroupBuyOrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.lkh.infrastructure.dao.po.GroupBuyOrder">
+            <id property="id" column="id" />
+            <result property="teamId" column="team_id" />
+            <result property="activityId" column="activity_id" />
+            <result property="source" column="source" />
+            <result property="channel" column="channel" />
+            <result property="originalPrice" column="original_price" />
+            <result property="deductionPrice" column="deduction_price" />
+            <result property="payPrice" column="pay_price" />
+            <result property="targetCount" column="target_count" />
+            <result property="completeCount" column="complete_count" />
+            <result property="lockCount" column="lock_count" />
+            <result property="status" column="status" />
+            <result property="validStartTime" column="valid_start_time"/>
+            <result property="validEndTime" column="valid_end_time"/>
+            <result property="notifyUrl" column="notify_url"/>
+            <result property="notifyType" column="notify_type"/>
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,team_id,activity_id,source,channel,original_price,
+        deduction_price,pay_price,target_count,complete_count,lock_count,
+        status,valid_start_time,valid_end_time,notify_url,notify_type,create_time,update_time
+    </sql>
+    <insert id="insert">
+        insert into group_buy_order (team_id,activity_id,source,channel,original_price,
+                                     deduction_price,pay_price,target_count,complete_count,lock_count,
+                                     status,valid_start_time,valid_end_time,notify_url,notify_type,create_time,update_time)
+        values (
+                #{teamId},#{activityId},#{source},#{channel},#{originalPrice},
+               #{deductionPrice},#{payPrice},#{targetCount},#{completeCount},#{lockCount},
+                #{status},#{validStartTime},#{validEndTime},#{notifyUrl},#{notifyType},#{createTime},#{updateTime}
+               )
+    </insert>
+    <update id="incyOneCount">
+        update group_buy_order set lock_count = lock_count + 1
+        where team_id = #{teamId} and lock_count &lt; target_count
+    </update>
+    <update id="setSuccessGroupBuyOrderStatus">
+        update group_buy_order set status = #{status}
+        where team_id = #{teamId}
+    </update>
+    <update id="incyCompleteCount">
+        update group_buy_order set complete_count = complete_count + 1
+        where team_id = #{teamId}
+    </update>
+    <update id="setSuccessIfCompleteTarget">
+        update group_buy_order set status = #{status}
+        where team_id = #{teamId} and target_count = complete_count
+    </update>
+    <select id="query" resultMap="BaseResultMap">
+        select id, team_id, activity_id, source, channel, original_price,
+               deduction_price, pay_price, target_count, complete_count,
+               lock_count, status,valid_start_time,valid_end_time,notify_url,notify_type, create_time, update_time
+        from group_buy_order
+        <where>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(id)">
+                and id = #{id}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(teamId)">
+                and team_id = #{teamId}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(activityId)">
+                and activity_id = #{activityId}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(source)">
+                and source = #{source}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(channel)">
+                and channel = #{channel}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(originalPrice)">
+                and original_price = #{originalPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(deductionPrice)">
+                and deduction_price = #{deductionPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(payPrice)">
+                and pay_price = #{payPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(targetCount)">
+                and target_count = #{targetCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(completeCount)">
+                and complete_count = #{completeCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(lockCount)">
+                and lock_count = #{lockCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(status)">
+                and status = #{status}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(createTime)">
+                and create_time = #{createTime}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(updateTime)">
+                and update_time = #{updateTime}
+            </if>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(notifyUrl)">
+                and notify_url = #{notifyUrl}
+            </if>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(notifyType)">
+                and notify_type = #{notifyType}
+            </if>
+        </where>
+    </select>
+    <select id="queryList" resultMap="BaseResultMap">
+        select id, team_id, activity_id, source, channel, original_price,
+        deduction_price, pay_price, target_count, complete_count,
+        lock_count, status,valid_start_time,valid_end_time,notify_url,notify_type, create_time, update_time
+        from group_buy_order
+        <where>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(id)">
+                and id = #{id}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(teamId)">
+                and team_id = #{teamId}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(activityId)">
+                and activity_id = #{activityId}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(source)">
+                and source = #{source}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(channel)">
+                and channel = #{channel}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(originalPrice)">
+                and original_price = #{originalPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(deductionPrice)">
+                and deduction_price = #{deductionPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(payPrice)">
+                and pay_price = #{payPrice}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(targetCount)">
+                and target_count = #{targetCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(completeCount)">
+                and complete_count = #{completeCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(lockCount)">
+                and lock_count = #{lockCount}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(status)">
+                and status = #{status}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(createTime)">
+                and create_time = #{createTime}
+            </if>
+
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(updateTime)">
+                and update_time = #{updateTime}
+            </if>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(notifyUrl)">
+                and notify_url = #{notifyUrl}
+            </if>
+            <if test="@com.lkh.infrastructure.utils.MyBatisParamUtil@isNotEmpty(notifyType)">
+                and notify_type = #{notifyType}
+            </if>
+        </where>
+    </select>
+    <select id="countAllTeamNumber" resultType="java.lang.Integer">
+        select count(*)
+        from group_buy_order
+        where source = #{source} and channel = #{channel} and activity_id = #{activityId} and status in (1,0)
+    </select>
+    <select id="countAllCompleteTeamNumber" resultType="java.lang.Integer">
+        select count(*)
+        from group_buy_order
+        where source = #{source} and channel = #{channel} and activity_id = #{activityId}
+          and status in (0,1)
+    </select>
+    <select id="queryListWithLimit" resultMap="BaseResultMap">
+        select gbo.* from group_buy_order gbo
+        where
+        gbo.source = #{req.source} and gbo.channel = #{req.channel}
+        and gbo.activity_id = #{req.activityId} and gbo.status = 0
+        and gbo.valid_end_time &gt; now()
+        and gbo.lock_count &lt; gbo.target_count
+        and exists (
+            select 1
+            from group_buy_order_list gbol
+            where gbol.team_id = gbo.team_id
+              and gbol.goods_id = #{goodsId}
+              and gbol.source = #{req.source}
+              and gbol.channel = #{req.channel}
+        )
+        <if test="req.teamId != null and req.teamId != ''">
+            and gbo.team_id != #{req.teamId}
+        </if>
+        limit #{count}
+    </select>
+</mapper>

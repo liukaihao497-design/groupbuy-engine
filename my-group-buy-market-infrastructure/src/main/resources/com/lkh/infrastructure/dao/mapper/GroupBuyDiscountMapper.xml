@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lkh.infrastructure.dao.GroupBuyDiscountMapper">
+
+    <resultMap id="BaseResultMap" type="com.lkh.infrastructure.dao.po.GroupBuyDiscount">
+            <id property="id" column="id" />
+            <result property="discountId" column="discount_id" />
+            <result property="discountName" column="discount_name" />
+            <result property="discountDesc" column="discount_desc" />
+            <result property="discountType" column="discount_type" />
+            <result property="marketPlan" column="market_plan" />
+            <result property="marketExpr" column="market_expr" />
+            <result property="tagId" column="tag_id" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,discount_id,discount_name,discount_desc,discount_type,market_plan,
+        market_expr,tag_id,create_time,update_time
+    </sql>
+    <select id="queryGroupBuyDiscountList" resultMap="BaseResultMap">
+        select * from group_buy_discount
+    </select>
+    <select id="queryByDiscountId" resultMap="BaseResultMap">
+    select * from group_buy_discount
+    where discount_id = #{discountId}
+
+    </select>
+
+</mapper>

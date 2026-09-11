@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小傅哥 - 拼团项目 - 商品详情页</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+<!-- 轮播图 -->
+<div class="swiper-container">
+    <div class="swiper-wrapper">
+        <div class="swiper-slide"><img src="images/sku-13811216-01.png"></div>
+        <div class="swiper-slide"><img src="images/sku-13811216-02.png"></div>
+        <div class="swiper-slide"><img src="images/sku-13811216-03.png"></div>
+    </div>
+    <div class="swiper-pagination"></div>
+</div>
+
+<!-- 商品信息 -->
+<div class="product-info">
+    <h1 class="product-title">手写MyBatis：渐进式源码实践（全彩）</h1>
+    <span class="promotion-tag">大促优惠</span>
+    <span class="promotion-text"></span>
+</div>
+
+<!-- 拼单列表容器 -->
+<div class="group-list">
+    <!-- 动态生成拼团列表 -->
+</div>
+
+<!-- 空白区域 -->
+<div class="area"></div>
+
+<!-- 底部操作栏 -->
+<div class="action-bar">
+    <button class="action-btn buy-alone"></button>
+    <button class="action-btn group-buy"></button>
+</div>
+
+<!-- 支付弹窗 -->
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <h2>请扫码支付</h2>
+        <br/>
+        <p id="paymentAmount" style="color:red;"></p>
+        <img src="images/sku-13811216-04.png"
+             alt="支付二维码"
+             class="qr-code">
+        <p id="outTradeNo"></p>
+        <div class="button-group">
+            <button id="cancelPayment">取消支付</button>
+            <button id="completePayment">支付完成</button>
+        </div>
+    </div>
+</div>
+
+<!-- 保留教程原来的 JS -->
+<script src="js/index.js"></script>
+
+<script>
+    /*
+     * 兼容处理：
+     * 如果教程 js/index.js 没加载成功，或者里面没有暴露这些全局方法，
+     * 页面也不会在发送接口请求之前直接报错停止。
+     */
+    if (typeof window.getCookie !== "function") {
+        window.getCookie = function (name) {
+            const prefix = encodeURIComponent(name) + "=";
+            const cookies = document.cookie.split(";");
+
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+
+                if (cookie.indexOf(prefix) === 0) {
+                    return decodeURIComponent(
+                        cookie.substring(prefix.length)
+                    );
+                }
+            }
+
+            return "";
+        };
+    }
+
+    if (typeof window.generateRandomNumber !== "function") {
+        window.generateRandomNumber = function (length) {
+            let result = "";
+
+            for (let i = 0; i < length; i++) {
+                result += Math.floor(Math.random() * 10);
+            }
+
+            return result;
+        };
+    }
+
+    /*
+     * 只有教程中没有 Countdown 时才使用这个简化版。
+     * 支持 00:02:38、02:38 和纯秒数。
+     */
+    if (typeof window.Countdown !== "function") {
+        window.Countdown = class {
+            constructor(element, value) {
+                this.element = element;
+                this.seconds = this.parse(value);
+                this.render();
+
+                this.timer = setInterval(() => {
+                    if (this.seconds <= 0) {
+                        clearInterval(this.timer);
+                        return;
+                    }
+
+                    this.seconds--;
+                    this.render();
+                }, 1000);
+            }
+
+            parse(value) {
+                const text = String(value || "").trim();
+
+                if (/^\d+$/.test(text)) {
+                    return Number(text);
+                }
+
+                const parts = text.split(":").map(Number);
+
+                if (parts.length === 3) {
+                    return parts[0] * 3600 +
+                        parts[1] * 60 +
+                        parts[2];
+                }
+
+                if (parts.length === 2) {
+                    return parts[0] * 60 +
+                        parts[1];
+                }
+
+                return 0;
+            }
+
+            render() {
+                const hours =
+                    Math.floor(this.seconds / 3600);
+
+                const minutes =
+                    Math.floor(
+                        (this.seconds % 3600) / 60
+                    );
+
+                const seconds =
+                    this.seconds % 60;
+
+                this.element.textContent =
+                    String(hours).padStart(2, "0") +
+                    ":" +
+                    String(minutes).padStart(2, "0") +
+                    ":" +
+                    String(seconds).padStart(2, "0");
+            }
+        };
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        /*
+         * 修改为你的实际后端地址。
+         * 后端如果就是 8091，不需要修改。
+         */
+        const baseUrl = "http://127.0.0.1:8091";
+
+        const source = "s01";
+        const channel = "c01";
+
+        let goodsId = "9890001";
+        let activityId = null;
+        let outTradeNo = "";
+
+        /*
+         * 页面可以先展示商品。
+         * 点击开团购买或参与拼团时，才判断是否已登录。
+         */
+        let userId = getCookie("username") || "";
+
+        loadGroupBuyMarket();
+
+        function loadGroupBuyMarket() {
+            const postData = {
+                source: source,
+                channel: channel,
+                goodsId: goodsId,
+                userId: userId || null
+            };
+
+            /*
+             * 你的查询接口是：
+             * POST + JSON 请求体，对应后端 @RequestBody。
+             */
+            fetch(
+                baseUrl +
+                "/api/v1/gbm/index/query_group_buy_market_config",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(postData)
+                }
+            )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(
+                            "HTTP " + response.status
+                        );
+                    }
+
+                    return response.json();
+                })
+                .then(res => {
+                    if (res.code !== "0000") {
+                        throw new Error(
+                            (res.code || "") +
+                            "：" +
+                            (res.info || "查询失败")
+                        );
+                    }
+
+                    if (!res.data || !res.data.goods) {
+                        throw new Error(
+                            "接口返回的 data 或 goods 为空"
+                        );
+                    }
+
+                    renderGroupBuyMarket(res.data);
+                })
+                .catch(error => {
+                    console.error(
+                        "查询拼团信息失败：",
+                        error
+                    );
+
+                    alert(
+                        "查询拼团信息失败：" +
+                        error.message
+                    );
+                });
+        }
+
+        function renderGroupBuyMarket(data) {
+            const goods = data.goods;
+            const teamList =
+                Array.isArray(data.teamList)
+                    ? data.teamList
+                    : [];
+
+            const teamStatistic =
+                data.teamStatistic || {};
+
+            activityId = data.activityId;
+            goodsId = goods.goodsId || goodsId;
+
+            const originalPrice =
+                Number(goods.originalPrice || 0);
+
+            const deductionPrice =
+                Number(goods.deductionPrice || 0);
+
+            const payPrice =
+                Number(goods.payPrice || 0);
+
+            const allTeamUserCount =
+                Number(
+                    teamStatistic.allTeamUserCount || 0
+                );
+
+            const promotionText =
+                document.querySelector(
+                    ".promotion-text"
+                );
+
+            promotionText.textContent =
+                "直降 ¥" +
+                deductionPrice.toFixed(0) +
+                "，" +
+                allTeamUserCount +
+                "人再抢，参与马上抢到";
+
+            const groupList =
+                document.querySelector(".group-list");
+
+            groupList.innerHTML = "";
+
+            // 支付单号只在点击对应的个人队伍按钮时写入，避免串到其他队伍。
+            outTradeNo = "";
+
+            if (teamList.length === 0) {
+                groupList.innerHTML = `
+                <div class="group-item empty-tips">
+                    <div class="tips-content">
+                        小伙伴，赶紧去开团吧，做村里最靓的仔！🎉
+                    </div>
+                </div>
+            `;
+            } else {
+                teamList.forEach(team => {
+                    const targetCount =
+                        Number(team.targetCount || 0);
+
+                    const lockCount =
+                        Number(team.lockCount || 0);
+
+                    const remaining =
+                        Math.max(
+                            targetCount - lockCount,
+                            0
+                        );
+
+                    const isCurrentUserTeam =
+                        Boolean(userId) &&
+                        String(userId) ===
+                        String(team.userId);
+
+                    const teamTradeNo =
+                        isCurrentUserTeam &&
+                        team.outTradeNo
+                            ? String(team.outTradeNo)
+                            : "";
+
+                    const buttonText = teamTradeNo
+                        ? "继续支付"
+                        : "参与拼团";
+
+                    groupList.innerHTML += `
+                    <div class="group-item">
+                        <div>
+                            <div class="user-info"
+                                 data-team-id="${team.teamId || ""}">
+                                ${team.userId || ""}
+                            </div>
+
+                            <div class="group-status">
+                                <span>
+                                    组队仅剩${remaining}人，拼单即将结束
+                                </span>
+
+                                <span class="countdown">
+                                    ${team.validTimeCountdown || ""}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="right">
+                            <button class="group-btn"
+                                    data-price="${payPrice.toFixed(0)}"
+                                    data-team-id="${team.teamId || ""}"
+                                    data-out-trade-no="${teamTradeNo}">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                });
+            }
+
+            const buyAloneBtn =
+                document.querySelector(".buy-alone");
+
+            const groupBuyBtn =
+                document.querySelector(".group-buy");
+
+            buyAloneBtn.textContent =
+                "单独购买(￥" +
+                originalPrice.toFixed(0) +
+                ")";
+
+            buyAloneBtn.dataset.price =
+                originalPrice;
+
+            groupBuyBtn.textContent =
+                "开团购买(￥" +
+                payPrice.toFixed(0) +
+                ")";
+
+            groupBuyBtn.dataset.price =
+                payPrice;
+
+            bindGroupBuyButtons();
+
+            document
+                .querySelectorAll(".countdown")
+                .forEach(element => {
+                    const value =
+                        element.textContent.trim();
+
+                    if (value) {
+                        new Countdown(
+                            element,
+                            value
+                        );
+                    }
+                });
+        }
+
+        function bindGroupBuyButtons() {
+            document
+                .querySelectorAll(
+                    ".group-btn, .group-buy"
+                )
+                .forEach(button => {
+                    button.addEventListener(
+                        "click",
+                        function () {
+                            /*
+                             * 点击开团或参与拼团时才登录。
+                             * login.html 登录后应保存：
+                             * username=<用户ID>
+                             */
+                            userId =
+                                getCookie("username");
+
+                            if (!userId) {
+                                window.location.href =
+                                    "login.html";
+                                return;
+                            }
+
+                            const existingTradeNo =
+                                this.dataset.outTradeNo || "";
+
+                            // 只有当前点击的个人队伍存在交易单时才继续支付。
+                            if (existingTradeNo) {
+                                outTradeNo = existingTradeNo;
+                                openPaymentModal(
+                                    this.dataset.price,
+                                    existingTradeNo
+                                );
+                                return;
+                            }
+
+                            // 参与已有队伍时按钮携带 teamId；底部开团按钮没有 teamId。
+                            const teamId =
+                                this.dataset.teamId || null;
+
+                            lockMarketPayOrder(
+                                teamId,
+                                this.dataset.price
+                            );
+                        }
+                    );
+                });
+        }
+
+        function lockMarketPayOrder(
+            teamId,
+            price
+        ) {
+            if (!activityId) {
+                alert("活动ID为空，不能锁单");
+                return;
+            }
+
+            /*
+             * 保证是12位字符串。
+             * 不转换成 Number，避免开头的0丢失。
+             */
+            outTradeNo =
+                String(
+                    generateRandomNumber(12)
+                ).padStart(12, "0")
+                    .slice(-12);
+
+            const postData = {
+                userId: userId,
+                teamId: teamId,
+                activityId: activityId,
+                goodsId: goodsId,
+                source: source,
+                channel: channel,
+                outTradeNo: outTradeNo,
+                notifyUrl:
+                    baseUrl +
+                    "/api/v1/test/group_buy_notify"
+            };
+
+            console.log(
+                "锁单请求参数：",
+                postData
+            );
+
+            /*
+             * 锁单接口：
+             * POST + JSON 请求体
+             */
+            fetch(
+                baseUrl +
+                "/api/v1/gbm/trade/lock_market_pay_order",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(postData)
+                }
+            )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(
+                            "HTTP " + response.status
+                        );
+                    }
+
+                    return response.json();
+                })
+                .then(res => {
+                    if (res.code !== "0000") {
+                        outTradeNo = "";
+
+                        throw new Error(
+                            (res.code || "") +
+                            "：" +
+                            (res.info || "锁单失败")
+                        );
+                    }
+
+                    console.log(
+                        "锁单成功：",
+                        res.data
+                    );
+
+                    openPaymentModal(
+                        price,
+                        outTradeNo
+                    );
+                })
+                .catch(error => {
+                    outTradeNo = "";
+
+                    console.error(
+                        "锁单失败：",
+                        error
+                    );
+
+                    alert(
+                        "锁单失败：" +
+                        error.message
+                    );
+                });
+        }
+
+        const modal =
+            document.getElementById(
+                "paymentModal"
+            );
+
+        const paymentAmount =
+            document.getElementById(
+                "paymentAmount"
+            );
+
+        const outTradeNoElement =
+            document.getElementById(
+                "outTradeNo"
+            );
+
+        const cancelPayment =
+            document.getElementById(
+                "cancelPayment"
+            );
+
+        const completePayment =
+            document.getElementById(
+                "completePayment"
+            );
+
+        function openPaymentModal(
+            price,
+            tradeNo
+        ) {
+            paymentAmount.textContent =
+                "支付金额：￥" + price;
+
+            outTradeNoElement.textContent =
+                tradeNo;
+
+            modal.style.display = "block";
+        }
+
+        function hidePaymentModal() {
+            modal.style.display = "none";
+        }
+
+        /*
+         * 单独购买保留教程原来的展示逻辑。
+         * 因为你当前提供的是拼团锁单和拼团结算接口，
+         * 单独购买没有对应的锁单接口。
+         */
+        document
+            .querySelector(".buy-alone")
+            .addEventListener(
+                "click",
+                function () {
+                    userId =
+                        getCookie("username");
+
+                    if (!userId) {
+                        window.location.href =
+                            "login.html";
+                        return;
+                    }
+
+                    paymentAmount.textContent =
+                        "支付金额：￥" +
+                        this.dataset.price;
+
+                    outTradeNoElement.textContent =
+                        "";
+
+                    modal.style.display =
+                        "block";
+                }
+            );
+
+        cancelPayment.addEventListener(
+            "click",
+            hidePaymentModal
+        );
+
+        completePayment.addEventListener(
+            "click",
+            function () {
+                userId =
+                    getCookie("username");
+
+                if (!userId) {
+                    window.location.href =
+                        "login.html";
+                    return;
+                }
+
+                if (!outTradeNo) {
+                    alert(
+                        "当前没有拼团交易单号，" +
+                        "请先开团或参与拼团"
+                    );
+                    return;
+                }
+
+                settlementMarketPayOrder();
+            }
+        );
+
+        function settlementMarketPayOrder() {
+            /*
+             * 结算接口：
+             * POST + application/json 请求体。
+             *
+             * 后端参数使用 @RequestBody 接收，
+             * 因此前端不能再把参数拼接到 URL Query 中。
+             */
+            const postData = {
+                source: source,
+                channel: channel,
+                userId: userId,
+                outTradeNo: outTradeNo,
+
+                /*
+                 * java.util.Date 可由 Jackson 解析标准 ISO-8601 时间。
+                 * 示例：2026-07-13T09:24:55.102Z
+                 */
+                outTradeTime: new Date().toISOString()
+            };
+
+            console.log(
+                "结算请求参数：",
+                postData
+            );
+
+            fetch(
+                baseUrl +
+                "/api/v1/gbm/trade/settlement_market_pay_order",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(postData)
+                }
+            )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(
+                            "HTTP " + response.status
+                        );
+                    }
+
+                    return response.json();
+                })
+                .then(res => {
+                    if (res.code !== "0000") {
+                        throw new Error(
+                            (res.code || "") +
+                            "：" +
+                            (
+                                res.info ||
+                                "支付结算失败"
+                            )
+                        );
+                    }
+
+                    console.log(
+                        "支付结算成功：",
+                        res.data
+                    );
+
+                    alert("支付&结算成功！");
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error(
+                        "支付结算失败：",
+                        error
+                    );
+
+                    alert(
+                        "支付&结算失败：" +
+                        error.message
+                    );
+                })
+                .finally(() => {
+                    hidePaymentModal();
+                });
+        }
+
+        window.addEventListener(
+            "click",
+            function (event) {
+                if (event.target === modal) {
+                    hidePaymentModal();
+                }
+            }
+        );
+    });
+</script>
+
+</body>
+</html>
